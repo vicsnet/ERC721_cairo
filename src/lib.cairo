@@ -221,21 +221,30 @@ mod ERC721 {
         }
        }
 
-       fn _check_authorised(){
-
+       fn _check_authorised(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, token_id:u256){
+        if self._isAuthorized(_owner, _spender, token_id) == false{
+            if 
+        }
        }
 
-       fn _isAuthorized(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, tokn_id:u256){
+       fn _isAuthorized(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, token_id:u256)->bool{
         assert(!spender.is_zero(), 'ZERO_ADDRESS');
+        if _owner==_spender || self._isApproved_for_all(_owner, _spender) || self._get_Approved(token_id) ==spender{
+            true
+        }
+        else{
+            false
+        }
+
        }
 
        fn _isApproved_for_all(self: ContractState, _owner:ContractAddress, _operator:ContractAddress) ->bool{
-        self.operatorApprovals.read(_owner, _operator);
+        self.operatorApprovals.read(_owner, _operator)
 
        }
 
        fn _get_Approved(self:ContractState, token_id:u256) ->ContractAddress{
-        slef.tokenApprovals.read(token_id)
+        self.tokenApprovals.read(token_id)
        }
     }
 }
