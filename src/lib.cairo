@@ -107,6 +107,11 @@ mod ERC721 {
         operator_address: ContractAddress,
         approved: bool
     }
+
+    mod Errors{
+        const NON_EXISTENT_ID: felt252='ID_DOES_NOT_EXIST';
+        const INVALID_APPROVAL:felt252 = 'INSUFFICIENT_APPROVAL';
+    }
     #[constructor]
     fn constructor(ref self:ContractState, _name:felt252, _symbol:felt252 ){
         self.name.wirte(_name);
@@ -221,9 +226,11 @@ mod ERC721 {
         }
        }
 
-       fn _check_authorised(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, token_id:u256){
+       fn _check_authorised(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, token_id:u256)->(){
         if self._isAuthorized(_owner, _spender, token_id) == false{
-            if 
+            assert(!_owner.is_zero(), Errors::NON_EXISTENT_ID);
+            Errors::INVALID_APPROVAL;
+            return;
         }
        }
 
