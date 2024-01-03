@@ -71,13 +71,13 @@ mod ERC721 {
     use starknet::contract_address::ContractAddressZeroable;
     #[storage]
     struct Storage {
-        name:felt252,
-        symbol:felt252,
+        name: felt252,
+        symbol: felt252,
         // balance: felt252,
-        owners:LegacyMap::<u256, ContractAddress>,
-        balances:LegacyMap::<ContractAddress, u256>,
-        tokenApprovals:LegacyMap::<u256, ContractAddress>,
-        operatorApprovals:LegacyMap::<(ContractAddress, ContractAddress), bool>
+        owners: LegacyMap::<u256, ContractAddress>,
+        balances: LegacyMap::<ContractAddress, u256>,
+        tokenApprovals: LegacyMap::<u256, ContractAddress>,
+        operatorApprovals: LegacyMap::<(ContractAddress, ContractAddress), bool>
     }
 
 
@@ -108,12 +108,12 @@ mod ERC721 {
         approved: bool
     }
 
-    mod Errors{
-        const NON_EXISTENT_ID: felt252='ID_DOES_NOT_EXIST';
-        const INVALID_APPROVAL:felt252 = 'INSUFFICIENT_APPROVAL';
+    mod Errors {
+        const NON_EXISTENT_ID: felt252 = 'ID_DOES_NOT_EXIST';
+        const INVALID_APPROVAL: felt252 = 'INSUFFICIENT_APPROVAL';
     }
     #[constructor]
-    fn constructor(ref self:ContractState, _name:felt252, _symbol:felt252 ){
+    fn constructor(ref self: ContractState, _name: felt252, _symbol: felt252) {
         self.name.wirte(_name);
         self.symbol.write(_symbol);
     }
@@ -144,9 +144,7 @@ mod ERC721 {
             to_address: ContractAddress,
             token_id: u256,
             data: ByteArray
-        ) {
-
-        }
+        ) {}
         fn safe_transfer_from(
             ref self: @ContractState,
             from_address: ContractAddress,
@@ -161,11 +159,12 @@ mod ERC721 {
         ) {
             assert(!to_address.is_zero(), 'INVALID_ADDRESS');
 
-             address previousOwner = _update(to, tokenId, _msgSender());
-        if (previousOwner != from) {
-            revert ERC721IncorrectOwner(from, tokenId, previousOwner);
-        }
-
+            address
+            previousOwner = _update(to, tokenId, _msgSender());
+            if (previousOwner != from) {
+                revert
+                ERC721IncorrectOwner(from, tokenId, previousOwner);
+            }
         }
         fn approve(ref slef: @ContractState, approved_address: ContractAddress, token_id: u256) {}
         fn set_approval_for_all(
@@ -178,9 +177,7 @@ mod ERC721 {
     }
     #[external(v0)]
     impl ERC165Impl of super::IERC165<ContractState> {
-        fn support_interface(self: ContractState, interface_id: ByteArray) -> bool {
-
-        }
+        fn support_interface(self: ContractState, interface_id: ByteArray) -> bool {}
     }
     #[external(v0)]
     impl ERC721TokenReceiverImpl of super::IERC721TokenReceiver<ContractState> {
@@ -201,57 +198,97 @@ mod ERC721 {
 
     #[external(v0)]
     impl ERC721EnumerableImpl of super::IERC721Enumerable<ContractState> {
-    fn total_supply(self: ContractState) -> u256{
-
-    }
-    fn token_by_index(self: ContractState, index: u256) -> u256{
-
-    }
-    fn token_owner_by_index(
-        self: ContractState, owner_address: ContractAddress, index: u256
-    ) -> u256{
-
-    }
+        fn total_supply(self: ContractState) -> u256 {}
+        fn token_by_index(self: ContractState, index: u256) -> u256 {}
+        fn token_owner_by_index(
+            self: ContractState, owner_address: ContractAddress, index: u256
+        ) -> u256 {}
     }
 
     #[generate_trait]
     impl Private of PrivateTrait {
-       fn _update(ref self:ContractState, to: ContractAddress, token_id:u256, auth: ContractAddress){
+        fn _update(
+            ref self: ContractState, to: ContractAddress, token_id: u256, auth: ContractAddress
+        ) {
+            let from: ContractAddress = self.owners.read(token_id);
 
-        let from: ContractAddress = self.owners.read(token_id);
-
-
-        if !auth.is_zero{
-            self._check_authorised()
-        }
-       }
-
-       fn _check_authorised(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, token_id:u256)->(){
-        if self._isAuthorized(_owner, _spender, token_id) == false{
-            assert(!_owner.is_zero(), Errors::NON_EXISTENT_ID);
-            Errors::INVALID_APPROVAL;
-            return;
-        }
-       }
-
-       fn _isAuthorized(ref self:ContractState, _owner:ContractAddress, _spender:ContractAddress, token_id:u256)->bool{
-        assert(!spender.is_zero(), 'ZERO_ADDRESS');
-        if _owner==_spender || self._isApproved_for_all(_owner, _spender) || self._get_Approved(token_id) ==spender{
-            true
-        }
-        else{
-            false
+            if !auth.is_zero() {
+                self._check_authorised(from, auth, token_id);
+            }
+            if !from.is_zero() {}
         }
 
-       }
+        fn _check_authorised(
+            ref self: ContractState,
+            _owner: ContractAddress,
+            _spender: ContractAddress,
+            token_id: u256
+        ) -> () {
+            if self._isAuthorized(_owner, _spender, token_id) == false {
+                assert(!_owner.is_zero(), Errors::NON_EXISTENT_ID);
+                Errors::INVALID_APPROVAL;
+                return;
+            }
+        }
 
-       fn _isApproved_for_all(self: ContractState, _owner:ContractAddress, _operator:ContractAddress) ->bool{
-        self.operatorApprovals.read(_owner, _operator)
+        fn _isAuthorized(
+            ref self: ContractState,
+            _owner: ContractAddress,
+            _spender: ContractAddress,
+            token_id: u256
+        ) -> bool {
+            assert(!spender.is_zero(), 'ZERO_ADDRESS');
+            if _owner == _spender
+                || self._isApproved_for_all(_owner, _spender)
+                || self._get_Approved(token_id) == spender {
+                true
+            } else {
+                false
+            }
+        }
 
-       }
+        fn _isApproved_for_all(
+            self: ContractState, _owner: ContractAddress, _operator: ContractAddress
+        ) -> bool {
+            self.operatorApprovals.read(_owner, _operator)
+        }
 
-       fn _get_Approved(self:ContractState, token_id:u256) ->ContractAddress{
-        self.tokenApprovals.read(token_id)
-       }
+        fn _get_Approved(self: ContractState, token_id: u256) -> ContractAddress {
+            self.tokenApprovals.read(token_id)
+        }
+
+        fn _approve(
+            ref self: ContractState,
+            to: ContractAddress,
+            token_id: u256,
+            auth: ContractAddress,
+            emitEvent: bool
+        ) {
+            if emitEvent == true || !auth.is_zero() {
+                let owner: ContractAddress = self._requireOwned(token_id);
+
+                assert(
+                    owner == auth
+                        && !auth.is_zero()
+                        && self._isApproved_for_all(owner, auth) == false,
+                    'INVALID_APPROVAL'
+                );
+                if emitEvent == true{
+                    self.emit(
+                        Approval{
+                            owner_address:owner, approved_address:to,
+                            token_id:token_id
+                        }
+                    );
+                }
+                self.tokenApprovals.write(token_id, to);
+            }
+        }
+
+        fn _requireOwned(self: ContractState, token_id: u256) -> ContractAddress {
+            let owner: ContractAddress = self.owners.read(token_id);
+            assert(!owner.is_zero(), 'NON_EXISTENT_TOKEN');
+            owner
+        }
     }
 }
