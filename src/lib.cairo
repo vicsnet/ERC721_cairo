@@ -67,12 +67,13 @@ trait IERC721Enumerable<TContractState> {
 
 #[starknet::contract]
 mod ERC721 {
-    use starknet::{ContractAddress};
+    use starknet::{ContractAddress, get_caller_address};
     use starknet::contract_address::ContractAddressZeroable;
     #[storage]
     struct Storage {
         name: felt252,
         symbol: felt252,
+        uri:felt252,
         // balance: felt252,
         owners: LegacyMap::<u256, ContractAddress>,
         balances: LegacyMap::<ContractAddress, u256>,
@@ -138,19 +139,25 @@ mod ERC721 {
         fn owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
             self.owners.read(token_id)
         }
-        fn safe_transfer_from(
-            ref slef: @ContractState,
-            from_address: ContractAddress,
-            to_address: ContractAddress,
-            token_id: u256,
-            data: ByteArray
-        ) {}
-        fn safe_transfer_from(
-            ref self: @ContractState,
-            from_address: ContractAddress,
-            to_address: ContractAddress,
-            token_id: u256
-        ) {}
+        // fn safe_transfer_from(
+        //     ref slef: @ContractState,
+        //     from_address: ContractAddress,
+        //     to_address: ContractAddress,
+        //     token_id: u256,
+        //     data: ByteArray
+        // ) {
+        //     self.transfer_from(from_address, to_address, token_id);
+
+        // }
+        // fn safe_transfer_from(
+        //     ref self: @ContractState,
+        //     from_address: ContractAddress,
+        //     to_address: ContractAddress,
+        //     token_id: u256
+        // ) {
+
+            
+        // }
         fn transfer_from(
             ref self: @ContractState,
             from_address: ContractAddress,
@@ -161,19 +168,33 @@ mod ERC721 {
 
             address
             previousOwner = _update(to, tokenId, _msgSender());
-            if (previousOwner != from) {
-                revert
-                ERC721IncorrectOwner(from, tokenId, previousOwner);
-            }
+            assert(previousOwner != from, 'INCORRECT_OWNER');
+
         }
-        fn approve(ref slef: @ContractState, approved_address: ContractAddress, token_id: u256) {}
+        fn approve(ref slef: @ContractState, approved_address: ContractAddress, token_id: u256) {
+            let caller = get_caller_address();
+            self._approve(approved_address,token_id, caller);
+        }
+
         fn set_approval_for_all(
             ref self: @ContractState, operator_address: ContractAddress, approved: bool
-        ) {}
-        fn get_approved(self: @ContractState, token_id: u256) -> ContractAddress {}
+        ) { 
+            assert(!operator_address.is_zero(), 'ZERO_ADDRESS');
+            let caller:ContractAddress = get_caller_address();
+            self.operatorApprovals.write((caller, operator_address), approved);
+        }
+
+        fn get_approved(self: @ContractState, token_id: u256) -> ContractAddress {
+            self._requireOwned(token_id);
+            self._get_Approved(token_id)
+
+        }
+
         fn is_approved_for_all(
             self: @ContractState, owner_address: ContractAddress, operator_address: ContractAddress
-        ) -> bool {}
+        ) -> bool {
+            self._is_approved_for_all(owner_address, operator_address)
+        }
     }
     #[external(v0)]
     impl ERC165Impl of super::IERC165<ContractState> {
@@ -191,9 +212,21 @@ mod ERC721 {
     }
     #[external(v0)]
     impl ERC721MetadataImpl of super::IERC721Metadata<ContractState> {
-        fn name(self: ContractState) -> felt252 {}
-        fn symbol(self: ContractState) -> felt252 {}
-        fn token_URI(self: ContractState, token_id: u256) -> felt252 {}
+        fn name(self: @ContractState) -> felt252 {
+            self.name.read()
+        }
+        fn symbol(self: @ContractState) -> felt252 {
+            self.symbol.read()
+        }
+        fn token_URI(self: @ContractState) -> felt252 {
+            self.uri.read();
+        }
+        fn set_URI(ref self: ContractState, token_uri:felt252){
+            self.uri.write(token_uri);
+        }
+        // fn token_URI(self: ContractState, token_id: u256) -> felt252 {
+        //     self.uri.read();
+        // }
     }
 
     #[external(v0)]
@@ -209,13 +242,25 @@ mod ERC721 {
     impl Private of PrivateTrait {
         fn _update(
             ref self: ContractState, to: ContractAddress, token_id: u256, auth: ContractAddress
-        ) {
+        ) ->ContractAddress{
             let from: ContractAddress = self.owners.read(token_id);
+               let Address0: ContractAddress = 0.try_into().unwrap();
 
             if !auth.is_zero() {
                 self._check_authorised(from, auth, token_id);
             }
-            if !from.is_zero() {}
+            if !from.is_zero() {
+                self._approve(Address0, token_id, Address0, false);
+                self.balances.write(from, self.balances.read(from)-1);
+            }
+            if !to.is_zero(){
+                self.balances.write(to, self.balances.read(to) + 1);
+            }
+            self.owners.write(token_id, to);
+            self.emit(Transfer{
+                from_address:from, to_address: to, token_id:token_id
+            });
+            from
         }
 
         fn _check_authorised(
@@ -247,7 +292,7 @@ mod ERC721 {
             }
         }
 
-        fn _isApproved_for_all(
+        fn _is_approved_for_all(
             self: ContractState, _owner: ContractAddress, _operator: ContractAddress
         ) -> bool {
             self.operatorApprovals.read(_owner, _operator)
@@ -285,10 +330,13 @@ mod ERC721 {
             }
         }
 
-        fn _requireOwned(self: ContractState, token_id: u256) -> ContractAddress {
+        fn _requireOwned(ref self: ContractState, token_id: u256) -> ContractAddress {
             let owner: ContractAddress = self.owners.read(token_id);
             assert(!owner.is_zero(), 'NON_EXISTENT_TOKEN');
             owner
         }
+        // fn _check_onERC721_received(ref self:ContractState, from_address:ContractAddress, to_address:ContractAddress, token_id:u256, data:ByteArray){
+            
+        // }
     }
 }
